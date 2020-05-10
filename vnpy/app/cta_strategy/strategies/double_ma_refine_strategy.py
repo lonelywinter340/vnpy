@@ -8,10 +8,11 @@ from vnpy.app.cta_strategy import (
     BarGenerator,
     ArrayManager,
 )
+from vnpy.trader.constant import Interval
 
 
-class DoubleMaStrategy(CtaTemplate):
-    author = "用Python的交易员"
+class DoubleMaRefineStrategy(CtaTemplate):
+    author = "JM"
 
     fast_window = 10
     slow_window = 20
@@ -23,6 +24,9 @@ class DoubleMaStrategy(CtaTemplate):
     slow_ma1 = 0.0
 
     period = 15
+    large_period_hour = 4
+
+    trend = 1 # 0-震荡 1-上涨 2-下跌
 
     parameters = ["period", "fast_window", "slow_window"]
     variables = ["fast_ma0", "fast_ma1", "slow_ma0", "slow_ma1"]
@@ -33,6 +37,9 @@ class DoubleMaStrategy(CtaTemplate):
 
         self.bg = BarGenerator(self.on_bar, self.period, self.on_bar_period)
         self.am = ArrayManager()
+
+        self.bg_large = BarGenerator(self.on_bar, self.large_period_hour, self.on_bar_large_period, Interval.HOUR)
+        self.am_large = ArrayManager()
 
     def on_init(self):
         """
@@ -61,17 +68,42 @@ class DoubleMaStrategy(CtaTemplate):
         Callback of new tick data update.
         """
         self.bg.update_tick(tick)
+        self.bg_large.update_tick(tick)
 
     def on_bar(self, bar: BarData):
         """
         Callback of new bar data update.
         """
         self.bg.update_bar(bar)
+        self.bg_large.update_bar(bar)
+
+    def on_bar_large_period(self, bar: BarData):
+        """
+        """
+        am = self.am_large
+        am.update_bar(bar)
+        if not am.inited:
+            return
+
+        #split_ma = am.sma(144, array=True)
+        #if split_ma[-1] > split_ma[-2]:
+        #    self.trend = 1
+        #else:
+        #    self.trend = -1
+
+        fast_ma = am.sma(self.fast_window)
+        slow_ma = am.sma(self.slow_window)
+        if fast_ma > slow_ma:
+            self.trend = 1
+        else:
+            self.trend = -1
+        #self.write_log(self.trend)
 
     def on_bar_period(self, bar: BarData):
         """
         Callback of new bar data update.
         """
+        self.cancel_all()
 
         am = self.am
         am.update_bar(bar)
@@ -91,17 +123,21 @@ class DoubleMaStrategy(CtaTemplate):
 
         if cross_over:
             if self.pos == 0:
-                self.buy(bar.close_price, 1)
+                if self.trend > 0:
+                    self.buy(bar.close_price, 1)
             elif self.pos < 0:
                 self.cover(bar.close_price, 1)
-                self.buy(bar.close_price, 1)
+                if self.trend > 0:
+                    self.buy(bar.close_price, 1)
 
         elif cross_below:
             if self.pos == 0:
-                self.short(bar.close_price, 1)
+                if self.trend < 0:
+                    self.short(bar.close_price, 1)
             elif self.pos > 0:
                 self.sell(bar.close_price, 1)
-                self.short(bar.close_price, 1)
+                if self.trend < 0:
+                    self.short(bar.close_price, 1)
 
         self.put_event()
 
