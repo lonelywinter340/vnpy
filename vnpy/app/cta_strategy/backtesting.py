@@ -7,6 +7,7 @@ from time import time
 import multiprocessing
 import random
 import traceback
+import talib
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -388,6 +389,9 @@ class BacktestingEngine:
             return_std = 0
             sharpe_ratio = 0
             return_drawdown_ratio = 0
+            average_drawdown = 0
+            lw_drawdown = 0
+            average_square_drawdown = 0
         else:
             # Calculate balance related time series data
             df["balance"] = df["net_pnl"].cumsum() + self.capital
@@ -417,6 +421,12 @@ class BacktestingEngine:
                 max_drawdown_duration = (max_drawdown_end - max_drawdown_start).days
             else:
                 max_drawdown_duration = 0
+
+            average_drawdown = df["ddpercent"].mean()
+            lw_drawdown = talib.LINEARREG(df["ddpercent"], total_days)[-1]
+
+            df["ddpercent^2"] = df["ddpercent"] * df["ddpercent"]
+            average_square_drawdown = - df["ddpercent^2"].mean()
 
             total_net_pnl = df["net_pnl"].sum()
             daily_net_pnl = total_net_pnl / total_days
@@ -462,6 +472,9 @@ class BacktestingEngine:
             self.output(f"年化收益：\t{annual_return:,.2f}%")
             self.output(f"最大回撤: \t{max_drawdown:,.2f}")
             self.output(f"百分比最大回撤: {max_ddpercent:,.2f}%")
+            self.output(f"百分比平均回撤: {average_drawdown:,.2f}%")
+            self.output(f"百分比线性加权回撤: {lw_drawdown:,.2f}%")
+            self.output(f"百分比均方回撤: {average_square_drawdown:,.2f}%")
             self.output(f"最长回撤天数: \t{max_drawdown_duration}")
 
             self.output(f"总盈亏：\t{total_net_pnl:,.2f}")
