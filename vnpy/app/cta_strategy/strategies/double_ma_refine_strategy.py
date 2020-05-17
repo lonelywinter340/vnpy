@@ -85,12 +85,6 @@ class DoubleMaRefineStrategy(CtaTemplate):
         if not am.inited:
             return
 
-        #split_ma = am.sma(144, array=True)
-        #if split_ma[-1] > split_ma[-2]:
-        #    self.trend = 1
-        #else:
-        #    self.trend = -1
-
         fast_ma = am.sma(self.fast_window)
         slow_ma = am.sma(self.slow_window)
         if fast_ma > slow_ma:
