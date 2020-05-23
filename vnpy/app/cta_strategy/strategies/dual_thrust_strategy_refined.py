@@ -18,22 +18,26 @@ class DualThrustRefinedStrategy(CtaTemplate):
 
     author = "JM"
 
-    fixed_size = 1
+    # 策略参数
+    fixed_size = 1 # 开仓头寸
     k1 = 0.4
     k2 = 0.6
     period = 1 #小周期看一分钟
     large_period_hour = 4 #大周期看四小时线
     n = 3 #过去3天的K线计算上下轨
     filter_by_trend = 1 # 是否用趋势过滤策略
-    dynamic_stop_loss_rate = 0.005 # 移动止损比例
+    dynamic_stop_loss_rate = 0.005 # 移动止损比例，高位回落比例达到该值自动出发止盈止损
 
-    bars = []
-    day_bars = []
+    # Bar数据暂存
+    bars = [] # 分钟bar
+    day_bars = [] # 天级bar
 
+    # 当天价格
     day_open = 0
     day_high = 0
     day_low = 0
 
+    # 前N天K线计算的波动范围、上轨、下轨
     range = 0
     long_entry = 0
     short_entry = 0
@@ -48,6 +52,7 @@ class DualThrustRefinedStrategy(CtaTemplate):
     trend_ma_period = 144
     trend = 1 # 0-震荡 1-上涨 2-下跌
 
+    # 记录开仓后的最高价（多单）或最低价（空单）
     session_high = 0
     session_low = 0
 
@@ -65,6 +70,7 @@ class DualThrustRefinedStrategy(CtaTemplate):
         self.am_large = ArrayManager(size=self.trend_ma_period + 1)
 
         self.bars = []
+        self.day_bars = []
 
     def on_init(self):
         """
@@ -107,25 +113,14 @@ class DualThrustRefinedStrategy(CtaTemplate):
         if not am.inited:
             return
 
+        # 用均线定势
         #self.write_log('%d, %d' % (am.count , self.trend_ma_period))
         trend_ma = am.sma(self.trend_ma_period, array=True)
         if trend_ma[-1] > trend_ma[-2]:
             self.trend = 1
         else:
             self.trend = -1
-        self.write_log('%f, %f, %d' % (trend_ma[-1], trend_ma[-2], self.trend))
-
-    def on_bar_period_15m(self, bar: BarData):
-        """
-        Callback of new bar data update.
-        """
-        am = self.am_15m
-        am.update_bar(bar)
-        if not am.inited:
-            return
-
-        #self.atr_value = am.atr(self.atr_window)
-        #self.write_log('atr: %f' % self.atr_value)
+        #self.write_log('%f, %f, %d' % (trend_ma[-1], trend_ma[-2], self.trend))
 
     def on_bar_period(self, bar: BarData):
         """
